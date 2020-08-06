@@ -17,18 +17,14 @@
 * under the License.
 */
 
-/**
- * @file  Define the themeRiver view's series model
- * @author Deqing Li(annong035@gmail.com)
- */
-
 import SeriesModel from '../../model/Series';
 import createDimensions from '../../data/helper/createDimensions';
 import {getDimensionTypeByAxis} from '../../data/helper/dimensionHelper';
 import List from '../../data/List';
 import * as zrUtil from 'zrender/src/core/util';
+import {groupData} from '../../util/model';
 import {encodeHTML} from '../../util/format';
-import nest from '../../util/nest';
+import LegendVisualProvider from '../../visual/LegendVisualProvider';
 
 var DATA_NAME_INDEX = 2;
 
@@ -54,9 +50,9 @@ var ThemeRiverSeries = SeriesModel.extend({
         // Put this function here is for the sake of consistency of code style.
         // Enable legend selection for each data item
         // Use a function instead of direct access because data reference may changed
-        this.legendDataProvider = function () {
-            return this.getRawData();
-        };
+        this.legendVisualProvider = new LegendVisualProvider(
+            zrUtil.bind(this.getData, this), zrUtil.bind(this.getRawData, this)
+        );
     },
 
     /**
@@ -67,58 +63,46 @@ var ThemeRiverSeries = SeriesModel.extend({
      */
     fixData: function (data) {
         var rawDataLength = data.length;
+        /**
+         * Make sure every layer data get the same keys.
+         * The value index tells which layer has visited.
+         * {
+         *  2014/01/01: -1
+         * }
+         */
+        var timeValueKeys = {};
 
         // grouped data by name
-        var dataByName = nest()
-            .key(function (dataItem) {
-                return dataItem[2];
-            })
-            .entries(data);
-
-        // data group in each layer
-        var layData = zrUtil.map(dataByName, function (d) {
-            return {
-                name: d.key,
-                dataList: d.values
-            };
-        });
-
-        var layerNum = layData.length;
-        var largestLayer = -1;
-        var index = -1;
-        for (var i = 0; i < layerNum; ++i) {
-            var len = layData[i].dataList.length;
-            if (len > largestLayer) {
-                largestLayer = len;
-                index = i;
+        var groupResult = groupData(data, function (item) {
+            if (!timeValueKeys.hasOwnProperty(item[0])) {
+                timeValueKeys[item[0]] = -1;
             }
-        }
+            return item[2];
+        });
+        var layData = [];
+        groupResult.buckets.each(function (items, key) {
+            layData.push({name: key, dataList: items});
+        });
+        var layerNum = layData.length;
 
         for (var k = 0; k < layerNum; ++k) {
-            if (k === index) {
-                continue;
-            }
             var name = layData[k].name;
-            for (var j = 0; j < largestLayer; ++j) {
-                var timeValue = layData[index].dataList[j][0];
-                var length = layData[k].dataList.length;
-                var keyIndex = -1;
-                for (var l = 0; l < length; ++l) {
-                    var value = layData[k].dataList[l][0];
-                    if (value === timeValue) {
-                        keyIndex = l;
-                        break;
-                    }
-                }
-                if (keyIndex === -1) {
+            for (var j = 0; j < layData[k].dataList.length; ++j) {
+                var timeValue = layData[k].dataList[j][0];
+                timeValueKeys[timeValue] = k;
+            }
+
+            for (var timeValue in timeValueKeys) {
+                if (timeValueKeys.hasOwnProperty(timeValue) && timeValueKeys[timeValue] !== k) {
+                    timeValueKeys[timeValue] = k;
                     data[rawDataLength] = [];
                     data[rawDataLength][0] = timeValue;
                     data[rawDataLength][1] = 0;
                     data[rawDataLength][2] = name;
                     rawDataLength++;
-
                 }
             }
+
         }
         return data;
     },
@@ -201,27 +185,20 @@ var ThemeRiverSeries = SeriesModel.extend({
         for (var i = 0; i < lenCount; ++i) {
             indexArr[i] = i;
         }
-        // data group by name
-        var dataByName = nest()
-            .key(function (index) {
-                return data.get('name', index);
-            })
-            .entries(indexArr);
-
-        var layerSeries = zrUtil.map(dataByName, function (d) {
-            return {
-                name: d.key,
-                indices: d.values
-            };
-        });
 
         var timeDim = data.mapDimension('single');
 
-        for (var j = 0; j < layerSeries.length; ++j) {
-            layerSeries[j].indices.sort(function (index1, index2) {
+        // data group by name
+        var groupResult = groupData(indexArr, function (index) {
+            return data.get('name', index);
+        });
+        var layerSeries = [];
+        groupResult.buckets.each(function (items, key) {
+            items.sort(function (index1, index2) {
                 return data.get(timeDim, index1) - data.get(timeDim, index2);
             });
-        }
+            layerSeries.push({name: key, indices: items});
+        });
 
         return layerSeries;
     },

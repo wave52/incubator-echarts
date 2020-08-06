@@ -23,7 +23,7 @@ import * as numberUtil from './number';
 // import Text from 'zrender/src/graphic/Text';
 
 /**
- * 每三位默认加,格式化
+ * add commas after every three numbers
  * @param {string|number} x
  * @return {string}
  */
@@ -236,4 +236,58 @@ export function capitalFirst(str) {
 
 export var truncateText = textContain.truncateText;
 
-export var getTextRect = textContain.getBoundingRect;
+/**
+ * @public
+ * @param {Object} opt
+ * @param {string} opt.text
+ * @param {string} opt.font
+ * @param {string} [opt.textAlign='left']
+ * @param {string} [opt.textVerticalAlign='top']
+ * @param {Array.<number>} [opt.textPadding]
+ * @param {number} [opt.textLineHeight]
+ * @param {Object} [opt.rich]
+ * @param {Object} [opt.truncate]
+ * @return {Object} {x, y, width, height, lineHeight}
+ */
+export function getTextBoundingRect(opt) {
+    return textContain.getBoundingRect(
+        opt.text,
+        opt.font,
+        opt.textAlign,
+        opt.textVerticalAlign,
+        opt.textPadding,
+        opt.textLineHeight,
+        opt.rich,
+        opt.truncate
+    );
+}
+
+/**
+ * @deprecated
+ * the `textLineHeight` was added later.
+ * For backward compatiblility, put it as the last parameter.
+ * But deprecated this interface. Please use `getTextBoundingRect` instead.
+ */
+export function getTextRect(
+    text, font, textAlign, textVerticalAlign, textPadding, rich, truncate, textLineHeight
+) {
+    return textContain.getBoundingRect(
+        text, font, textAlign, textVerticalAlign, textPadding, textLineHeight, rich, truncate
+    );
+}
+
+/**
+ * open new tab
+ * @param {string} link url
+ * @param {string} target blank or self
+ */
+export function windowOpen(link, target) {
+    if (target === '_blank' || target === 'blank') {
+        var blank = window.open();
+        blank.opener = null;
+        blank.location = link;
+    }
+    else {
+        window.open(link, target);
+    }
+}

@@ -49,7 +49,7 @@ under the License.
                     },
                     tooltip: {},
                     legend: {
-                        data: ['预算分配（Allocated Budget）', '实际开销（Actual Spending）', '第一个元素是 null']
+                        data: ['预算分配（Allocated Budget）', '实际开销（Actual Spending）含有 "-" 数据', '第一个元素是 null']
                     },
                     radar: {
                         radius: [50, '70%'],
@@ -84,19 +84,33 @@ under the License.
                             },
                              {
                                 value : [50, 14000, 28000, 31000, '-', 21000],
-                                name : '实际开销（Actual Spending）'
+                                name : '实际开销（Actual Spending）含有 "-" 数据'
                             },
                             {
                                 value: ['-', 8000, 20000, 20000, 40000, 10000],
                                 name: '第一个元素是 null'
                             }
-                        ]
+                        ],
+                        symbol: 'triangle',
+                        symbolSize: 20,
+                        symbolRotate: function(value, params) {
+                            return ~~(360 * Math.random());
+                        }
                     }]
                 });
-
+                var theIndex = 2;
                 chart.on('click', function (params) {
-                    console.log(params)
-                })
+                    console.log(params);
+                    if (theIndex < 0) {
+                        theIndex = 2;
+                    }
+                    chart.dispatchAction({
+                        type: 'showTip',
+                        seriesIndex: 0,
+                        dataIndex: theIndex
+                    });
+                    theIndex--;
+                });
             });
 
         </script>
